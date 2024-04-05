@@ -4,6 +4,7 @@ defmodule Mailchimp.List do
   alias Mailchimp.Link
   alias Mailchimp.Member
   alias Mailchimp.List.InterestCategory
+
   @moduledoc """
 
   Your Mailchimp list, also known as your audience, is where you store and manage all of your contacts.
@@ -42,26 +43,23 @@ defmodule Mailchimp.List do
 
   """
 
-
-  defstruct [
-    id: nil,
-    name: nil,
-    contact: nil,
-    permission_reminder: nil,
-    use_archive_bar: nil,
-    campaign_defaults: nil,
-    notify_on_subscribe: nil,
-    notify_on_unsubscribe: nil,
-    list_rating: nil,
-    email_type_option: nil,
-    subscribe_url_short: nil,
-    subscribe_url_long: nil,
-    beamer_address: nil,
-    visibility: nil,
-    modules: [],
-    stats: nil,
-    links: []
-  ]
+  defstruct id: nil,
+            name: nil,
+            contact: nil,
+            permission_reminder: nil,
+            use_archive_bar: nil,
+            campaign_defaults: nil,
+            notify_on_subscribe: nil,
+            notify_on_unsubscribe: nil,
+            list_rating: nil,
+            email_type_option: nil,
+            subscribe_url_short: nil,
+            subscribe_url_long: nil,
+            beamer_address: nil,
+            visibility: nil,
+            modules: [],
+            stats: nil,
+            links: []
 
   @doc """
     Generates an `Mailchimp.List` struct from the given attributes.
@@ -73,7 +71,6 @@ defmodule Mailchimp.List do
       contact: attributes[:contact],
       permission_reminder: attributes[:permission_reminder],
       use_archive_bar: attributes[:use_archive_bar],
-
       campaign_defaults: attributes[:campaign_defaults],
       notify_on_subscribe: attributes[:notify_on_subscribe],
       notify_on_unsubscribe: attributes[:notify_on_unsubscribe],
@@ -132,7 +129,6 @@ defmodule Mailchimp.List do
     members
   end
 
-
   @doc """
     Fetches all members on the mailchimp list, and compares then to the given list of members.
     Warning: This method only checks for the same email address
@@ -152,26 +148,19 @@ defmodule Mailchimp.List do
     %{
       members_not_on_mailchimp:
         members
-        |> Enum.filter(
-          fn member ->
-            members_on_mailchimp
-            |> Enum.find(
-              fn member_on_mail_chimp ->
-                member_on_mail_chimp.email_address == member.email_address
-              end
-            ) == nil
+        |> Enum.filter(fn member ->
+          members_on_mailchimp
+          |> Enum.find(fn member_on_mail_chimp ->
+            member_on_mail_chimp.email_address == member.email_address
+          end) == nil
         end),
-
       members_only_on_mailchimp:
         members_on_mailchimp
-        |> Enum.filter(
-          fn member ->
-            members
-            |> Enum.find(
-              fn member_on_mail_chimp ->
-                member_on_mail_chimp.email_address == member.email_address
-              end
-            ) == nil
+        |> Enum.filter(fn member ->
+          members
+          |> Enum.find(fn member_on_mail_chimp ->
+            member_on_mail_chimp.email_address == member.email_address
+          end) == nil
         end)
     }
   end
@@ -215,7 +204,12 @@ defmodule Mailchimp.List do
       |> String.downcase()
       |> md5
 
-    {:ok, response} = HTTPClient.delete(href <> "/#{subscriber_id}")
+    response =
+      try do
+        HTTPClient.delete(href <> "/#{subscriber_id}")
+      rescue
+        e -> e
+      end
 
     case response do
       %Response{status_code: 204} ->
@@ -223,6 +217,18 @@ defmodule Mailchimp.List do
 
       %Response{status_code: _, body: body} ->
         {:error, body}
+
+      %Jason.DecodeError{} ->
+        # when calling this endpoint a second time for a given email
+        # Mailchimp return a body that Jason can't decode:
+        # data: <<31, 139, 8, 0, 0, 0, 0, 0, 0, 3, 53, 142, 203, 78, 196, 48, 12, 69,
+        # 127, 197, 202, 186, 157, 12, 52, 69, 109, 119, 136, 53, 172, 248, 129, 60,
+        # 60, 52, 34, 137, 163, 196, 83, 132, 16, 255, 142, 187, 96, ...>>
+        # So we return the {:ok, email} which was already handled.
+        {:ok, email}
+
+      error ->
+        error
     end
   end
 
@@ -262,7 +268,6 @@ defmodule Mailchimp.List do
       )
       when is_binary(email_address) and is_map(merge_fields) and
              status_if_new in ["subscribed", "pending", "unsubscribed", "cleaned"] do
-
     subscriber_id =
       email_address
       |> String.downcase()
@@ -291,8 +296,16 @@ defmodule Mailchimp.List do
     Same as `create_or_update_member/5`
     but raises errors.
   """
-  def create_or_update_member!(list, email_address, status_if_new, merge_fields \\ %{}, additional_data \\ %{}) do
-    {:ok, member} = create_or_update_member(list, email_address, status_if_new, merge_fields, additional_data)
+  def create_or_update_member!(
+        list,
+        email_address,
+        status_if_new,
+        merge_fields \\ %{},
+        additional_data \\ %{}
+      ) do
+    {:ok, member} =
+      create_or_update_member(list, email_address, status_if_new, merge_fields, additional_data)
+
     member
   end
 
@@ -348,7 +361,6 @@ defmodule Mailchimp.List do
     member
   end
 
-
   @doc """
   Batch subscribe members. Pass the List and the list of members with properties
   such as email_address, status, and merge_fields (for example, for first and last name).
@@ -387,7 +399,6 @@ defmodule Mailchimp.List do
     {:ok, members} = batch_subscribe(list, members, opts)
     members
   end
-
 
   @doc """
     Creates a list of members at Mailchimp. You can pass merge_fields or additional_data
